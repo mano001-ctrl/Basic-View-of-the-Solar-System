@@ -1,0 +1,96 @@
+import math
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+
+# Function to calculate Julian Date
+def calculate_julian_date(year, month, day, hour=0, minute=0, second=0):
+    if month <= 2:
+        year -= 1
+        month += 12
+    A = math.floor(year / 100)
+    B = 2 - A + math.floor(A / 4)
+    JD = math.floor(365.25 * (year + 4716)) + math.floor(30.6001 * (month + 1)) + day + B - 1524.5
+    JD += (hour + minute / 60 + second / 3600) / 24
+    return JD
+
+# Function to calculate the position of the Sun (simplified version)
+def calculate_sun_position(julian_date):
+    n = julian_date - 2451545.0
+    L = (280.46 + 0.9856474 * n) % 360
+    g = (357.528 + 0.9856003 * n) % 360
+    g = math.radians(g)
+    lambda_sun = L + 1.915 * math.sin(g) + 0.020 * math.sin(2 * g)
+    lambda_sun = math.radians(lambda_sun)
+    epsilon = math.radians(23.439 - 0.0000004 * n)
+    RA = math.atan2(math.cos(epsilon) * math.sin(lambda_sun), math.cos(lambda_sun))
+    Dec = math.asin(math.sin(epsilon) * math.sin(lambda_sun))
+    RA = math.degrees(RA)
+    Dec = math.degrees(Dec)
+    return RA, Dec
+
+# Function to calculate the positions of planets (simplified version)
+def calculate_planet_position(julian_date, planet):
+    n = julian_date - 2451545.0
+    if planet == "Mercury":
+        L = (252.25084 + 4.0923386 * n) % 360
+        a = 0.387098
+        e = 0.205630
+    elif planet == "Venus":
+        L = (181.97973 + 1.6021305 * n) % 360
+        a = 0.723330
+        e = 0.006773
+    elif planet == "Mars":
+        L = (355.45332 + 0.5240329 * n) % 360
+        a = 1.523679
+        e = 0.093315
+    elif planet == "Jupiter":
+        L = (34.40438 + 0.0830853 * n) % 360
+        a = 5.20260
+        e = 0.048498
+    elif planet == "Saturn":
+        L = (50.077471 + 0.0334510 * n) % 360
+        a = 9.55491
+        e = 0.055508
+    else:
+        raise ValueError("Unknown planet")
+
+    M = math.radians(L - (360 * math.floor(L / 360)))
+    E = M + e * math.sin(M) * (1.0 + e * math.cos(M))
+    x = a * (math.cos(E) - e)
+    y = a * (math.sqrt(1.0 - e**2) * math.sin(E))
+    distance = math.sqrt(x**2 + y**2)
+    true_anomaly = math.atan2(y, x)
+    longitude = (true_anomaly + math.radians(L - (360 * math.floor(L / 360)))) % (2 * math.pi)
+    longitude = math.degrees(longitude)
+    return distance, longitude
+
+# Example usage
+date = datetime.utcnow()
+jd = calculate_julian_date(date.year, date.month, date.day, date.hour, date.minute, date.second)
+sun_ra, sun_dec = calculate_sun_position(jd)
+
+# Calculate positions of planets
+planets = ["Mercury", "Venus", "Mars", "Jupiter", "Saturn"]
+planet_positions = {planet: calculate_planet_position(jd, planet) for planet in planets}
+
+# Visualization
+fig, ax = plt.subplots()
+ax.set_aspect('equal')
+ax.set_xlim(-10, 10)
+ax.set_ylim(-10, 10)
+
+# Plot the Sun
+ax.plot(0, 0, 'yo', markersize=10, label='Sun')
+
+# Plot the planets
+for planet, (distance, longitude) in planet_positions.items():
+    x = distance * math.cos(math.radians(longitude))
+    y = distance * math.sin(math.radians(longitude))
+    ax.plot(x, y, 'o', label=planet)
+
+ax.legend()
+ax.set_title("Positions of Planets in the Solar System")
+ax.set_xlabel("X (AU)")
+ax.set_ylabel("Y (AU)")
+plt.grid(True)
+plt.show()
